@@ -29,5 +29,7 @@ ar-lib
 compile
 config.cache
 ltmain*
-libgc
-collectd
+glibc/
+collectd/
+nanomsg/
+*so
