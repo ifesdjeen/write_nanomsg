@@ -29,3 +29,5 @@ ar-lib
 compile
 config.cache
 ltmain*
+libgc
+collectd
