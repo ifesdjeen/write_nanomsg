@@ -9,7 +9,8 @@
 #include "utils_format_json.h"
 
 #include <nanomsg/nn.h>
-#include <nanomsg/pair.h>
+// #include <nanomsg/pair.h>
+#include <nanomsg/bus.h>
 
 /* Ethernet - (IPv6 + TCP) = 1500 - (40 + 32) = 1428 */
 #ifndef NMSG_SEND_BUF_SIZE
@@ -26,18 +27,22 @@ nanomsg_write(const data_set_t *ds, /* {{{ */
               user_data_t *user_data)
 {
   struct nanomsg_callback *cb;
-  void *buf = nn_allocmsg (4096, 0);
-  size_t bfree = 4096;
-  size_t bfill = 0;
+  // void *buf = nn_allocmsg (4096, 0);
 
   cb = user_data->data;
   int sock = cb->nanomsg_sock;
 
-  format_json_initialize (buf, &bfill, &bfree);
-  format_json_value_list (buf, &bfill, &bfree, ds, value_list, 0);
-  format_json_finalize (buf, &bfill, &bfree);
+  char buffer[4096];
+  size_t bfree = sizeof (buffer);
+  size_t bfill = 0;
 
-  nn_send(sock, &buf, NN_MSG, 0);
+  /* format_json_initialize (buffer, &bfill, &bfree); */
+  /* format_json_value_list (buffer, &bfill, &bfree, ds, value_list, 0); */
+  /* format_json_finalize   (buffer, &bfill, &bfree); */
+
+  WARNING("%s", "write1");
+  nn_send(sock, &value_list, sizeof(value_list), 0);
+  WARNING("%s", "write2");
 
   return (0);
 }
@@ -64,15 +69,17 @@ nanomsg_config_node (oconfig_item_t *cfg)
 
   node_config = malloc(sizeof(*node_config));
 
-  node_config->nanomsg_sock = nn_socket (AF_SP, NN_PAIR);
+  node_config->nanomsg_sock = nn_socket (AF_SP, NN_BUS);
+
+  if (node_config->nanomsg_sock < 0) {
+    ERROR("write_nanomsg plugin: can't initialize socket");
+  }
 
   if (node_config == NULL) {
     ERROR("write_nanomsg plugin: malloc failed");
     return (-1);
   }
   memset(node_config, 0, sizeof(*node_config));
-
-  node_config->nanomsg_sock = -1;
 
   memset (&user_data, 0, sizeof (user_data));
   user_data.data = node_config;
@@ -85,8 +92,8 @@ nanomsg_config_node (oconfig_item_t *cfg)
     if (strcasecmp ("Uri", child->key) == 0) {
       /* char* uri; */
       /* cf_util_get_string(child, &uri); */
-      nn_bind (node_config->nanomsg_sock, "tcp://127.0.0.1:5555");
-
+      nn_connect (node_config->nanomsg_sock, "tcp://127.0.0.1:5555");
+  WARNING("%s", "CONNECTING");
       /* char callback_name[DATA_MAX_NAME_LEN]; */
 
       /* ssnprintf(callback_name, sizeof(callback_name), "write_nanomsg/%s", */
