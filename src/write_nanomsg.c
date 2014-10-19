@@ -57,9 +57,11 @@ nanomsg_write(const data_set_t *ds, /* {{{ */
 }
 
 static void
-nanomsg_callback_free (void *data)
+nanomsg_callback_free (void *user_data)
 {
-  WARNING("%s", "CALLING FREE");
+  struct nanomsg_callback *cb = user_data;
+  nn_shutdown(cb->nanomsg_sock, cb->nanomsg_endpoint_id);
+  sfree(cb);
 }
 
 static int
@@ -93,7 +95,7 @@ nanomsg_config_node (oconfig_item_t *cfg)
     if (strcasecmp ("Uri", child->key) == 0) {
       char *uri = NULL;
       cf_util_get_string(child, &uri);
-      nn_connect (node_config->nanomsg_sock, uri);
+      node_config->nanomsg_endpoint_id = nn_connect (node_config->nanomsg_sock, uri);
 
       plugin_register_write ("nanomsg_write", nanomsg_write, &user_data);
     } else {
