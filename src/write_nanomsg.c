@@ -19,6 +19,7 @@
 
 struct nanomsg_callback {
   int  nanomsg_sock;
+  int  nanomsg_endpoint_id;
 };
 
 static int
@@ -27,32 +28,38 @@ nanomsg_write(const data_set_t *ds, /* {{{ */
               user_data_t *user_data)
 {
   struct nanomsg_callback *cb;
-  char   send_buffer[4096];
-  size_t send_buffer_free = sizeof (send_buffer);
-  size_t send_buffer_fill = 0;
+  char   ser_buf[4096];
+  size_t ser_buf_free = sizeof (ser_buf);
+  size_t ser_buf_fill = 0;
+  int    nbytes;
 
-  memset (send_buffer, 0, sizeof (send_buffer));
+  memset (ser_buf, 0, sizeof (ser_buf));
 
-  format_json_initialize (send_buffer, &send_buffer_fill, &send_buffer_free);
-  format_json_value_list (send_buffer,
-                          &send_buffer_fill,
-                          &send_buffer_free,
+  format_json_initialize (ser_buf, &ser_buf_fill, &ser_buf_free);
+  format_json_value_list (ser_buf,
+                          &ser_buf_fill,
+                          &ser_buf_free,
                           ds,
                           value_list,
                           0);
-  format_json_finalize (send_buffer, &send_buffer_fill, &send_buffer_free);
+  format_json_finalize (ser_buf, &ser_buf_fill, &ser_buf_free);
 
   cb = user_data->data;
   int sock = cb->nanomsg_sock;
-  nn_send(sock, &send_buffer, send_buffer_fill, 0);
 
-  return (0);
+  nbytes = nn_send(sock, &ser_buf, ser_buf_fill, 0);
+
+  if (nbytes == ser_buf_fill) {
+    return (0);
+  } else {
+    return (1);
+  }
 }
 
 static void
 nanomsg_callback_free (void *data)
 {
-
+  WARNING("%s", "CALLING FREE");
 }
 
 static int
@@ -84,19 +91,11 @@ nanomsg_config_node (oconfig_item_t *cfg)
     oconfig_item_t *child = &cfg->children[i];
 
     if (strcasecmp ("Uri", child->key) == 0) {
-      /* char* uri; */
-      /* cf_util_get_string(child, &uri); */
-      nn_connect (node_config->nanomsg_sock, "tcp://127.0.0.1:5555");
-      WARNING("%s", "CONNECTING");
-      /* char callback_name[DATA_MAX_NAME_LEN]; */
+      char *uri = NULL;
+      cf_util_get_string(child, &uri);
+      nn_connect (node_config->nanomsg_sock, uri);
 
-      /* ssnprintf(callback_name, sizeof(callback_name), "write_nanomsg/%s", */
-      /*           uri); */
-
-      char* cb_name = "nanomsg_write";
-      WARNING("%s", cb_name);
-
-      plugin_register_write (cb_name, nanomsg_write, &user_data);
+      plugin_register_write ("nanomsg_write", nanomsg_write, &user_data);
     } else {
       ERROR("nanomsg_config Error while configuring node: "
             "option: %s.", child->key);
