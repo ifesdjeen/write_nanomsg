@@ -27,31 +27,25 @@ nanomsg_write(const data_set_t *ds, /* {{{ */
               user_data_t *user_data)
 {
   struct nanomsg_callback *cb;
-  // void *buf = nn_allocmsg (4096, 0);
+  char   send_buffer[4096];
+  size_t send_buffer_free = sizeof (send_buffer);
+  size_t send_buffer_fill = 0;
+
+  memset (send_buffer, 0, sizeof (send_buffer));
+
+  format_json_initialize (send_buffer, &send_buffer_fill, &send_buffer_free);
+  format_json_value_list (send_buffer,
+                          &send_buffer_fill,
+                          &send_buffer_free,
+                          ds,
+                          value_list,
+                          0);
+  format_json_finalize (send_buffer, &send_buffer_fill, &send_buffer_free);
 
   cb = user_data->data;
   int sock = cb->nanomsg_sock;
+  nn_send(sock, &send_buffer, send_buffer_fill, 0);
 
-  char buffer[4096];
-  size_t bfree = sizeof (buffer);
-  size_t bfill = 0;
-
-  /* format_json_initialize (buffer, &bfill, &bfree); */
-  /* format_json_value_list (buffer, &bfill, &bfree, ds, value_list, 0); */
-  /* format_json_finalize   (buffer, &bfill, &bfree); */
-
-  WARNING("%s", "write1");
-  nn_send(sock, &value_list, sizeof(value_list), 0);
-  WARNING("%s", "write2");
-
-  return (0);
-}
-
-static int nanomsg_flush (cdtime_t timeout,
-                          const char *identifier __attribute__((unused)),
-                          user_data_t *user_data)
-{
-  WARNING("%s", "FLUSHING");
   return (0);
 }
 
@@ -93,7 +87,7 @@ nanomsg_config_node (oconfig_item_t *cfg)
       /* char* uri; */
       /* cf_util_get_string(child, &uri); */
       nn_connect (node_config->nanomsg_sock, "tcp://127.0.0.1:5555");
-  WARNING("%s", "CONNECTING");
+      WARNING("%s", "CONNECTING");
       /* char callback_name[DATA_MAX_NAME_LEN]; */
 
       /* ssnprintf(callback_name, sizeof(callback_name), "write_nanomsg/%s", */
@@ -103,9 +97,6 @@ nanomsg_config_node (oconfig_item_t *cfg)
       WARNING("%s", cb_name);
 
       plugin_register_write (cb_name, nanomsg_write, &user_data);
-
-      plugin_register_flush (cb_name, nanomsg_flush, &user_data);
-
     } else {
       ERROR("nanomsg_config Error while configuring node: "
             "option: %s.", child->key);
