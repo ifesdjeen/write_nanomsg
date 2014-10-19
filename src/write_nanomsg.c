@@ -1,5 +1,8 @@
 /**
+ * Copyright (C) 20014 Oleksandr Petrov
  *
+ * Author:
+ *   Oleksandr Petrov <oleksandr.petrov at gmail.com>
  */
 
 #include "collectd.h"
@@ -124,16 +127,8 @@ nanomsg_config (oconfig_item_t *ci)
   return (0);
 }
 
-/* static int nanomsg_shutdown (void) */
-/* { */
-
-/* } */
-
-
-
-void module_register (void)
+void
+module_register (void)
 {
   plugin_register_complex_config ("write_nanomsg", nanomsg_config);
-
-  /* plugin_register_shutdown ("write_nanomsg", nanomsg_shutdown); */
 }
