@@ -24,6 +24,7 @@ Add a configuration section for the listening nanomsg node:
 # Building
 
 ```
+./setup.sh # For fetching collectd 
 autoreconf --install
 ./configure --prefix /path/to/your_collectd
 make
